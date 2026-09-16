@@ -19,6 +19,7 @@ internal static class ShipSync
   private static readonly List<ShipSnapshot> Latest = new();
   private static readonly object Gate = new();
   private static int _lastLoggedCount = -1;
+  private static bool _loggedProtocolMismatch;
 
   internal static IReadOnlyList<ShipSnapshot> GetLatest()
   {
@@ -114,7 +115,9 @@ internal static class ShipSync
     try
     {
       pkg.SetPos(0);
-      var ships = ReadPackage(pkg);
+      if (!TryReadPackage(pkg, out var ships))
+        return;
+
       lock (Gate)
       {
         Latest.Clear();
@@ -331,6 +334,7 @@ internal static class ShipSync
   private static ZPackage WritePackage(List<ShipSnapshot> ships)
   {
     var pkg = new ZPackage();
+    pkg.Write(BoatTrackingPlugin.ProtocolVersion);
     pkg.Write(ships.Count);
     foreach (var ship in ships)
     {
@@ -343,10 +347,24 @@ internal static class ShipSync
     return pkg;
   }
 
-  private static List<ShipSnapshot> ReadPackage(ZPackage pkg)
+  private static bool TryReadPackage(ZPackage pkg, out List<ShipSnapshot> ships)
   {
+    ships = new List<ShipSnapshot>();
+    var version = pkg.ReadInt();
+    if (version != BoatTrackingPlugin.ProtocolVersion)
+    {
+      NotifyProtocolMismatch(version);
+      return false;
+    }
+
     var count = pkg.ReadInt();
-    var ships = new List<ShipSnapshot>(count);
+    if (count < 0 || count > 512)
+    {
+      BoatTrackingPlugin.Log.LogWarning($"Ship sync rejected: unreasonable ship count {count}.");
+      return false;
+    }
+
+    ships = new List<ShipSnapshot>(count);
     for (var i = 0; i < count; i++)
     {
       ships.Add(new ShipSnapshot
@@ -358,6 +376,47 @@ internal static class ShipSync
         PrefabHash = pkg.ReadInt(),
       });
     }
-    return ships;
+    return true;
+  }
+
+  private static void NotifyProtocolMismatch(int serverVersion)
+  {
+    if (_loggedProtocolMismatch)
+      return;
+    _loggedProtocolMismatch = true;
+
+    var clientVersion = BoatTrackingPlugin.ProtocolVersion;
+    string playerMsg;
+    if (serverVersion < clientVersion)
+    {
+      playerMsg =
+        $"BoatTracking: server mod is outdated (server protocol {serverVersion}, you have {clientVersion}). Ask the host to update BoatTracking.";
+    }
+    else
+    {
+      playerMsg =
+        $"BoatTracking: your mod is outdated (server protocol {serverVersion}, you have {clientVersion}). Update BoatTracking to match the server.";
+    }
+
+    BoatTrackingPlugin.Log.LogWarning(playerMsg);
+    try
+    {
+      if (MessageHud.instance)
+        MessageHud.instance.ShowMessage(MessageHud.MessageType.Center, playerMsg);
+    }
+    catch (System.Exception ex)
+    {
+      BoatTrackingPlugin.Log.LogWarning($"Could not show protocol mismatch HUD: {ex.Message}");
+    }
+
+    try
+    {
+      if (Chat.instance)
+        Chat.instance.AddString("BoatTracking", playerMsg, Talker.Type.Normal);
+    }
+    catch
+    {
+      // optional — HUD is enough
+    }
   }
 }

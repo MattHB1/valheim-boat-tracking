@@ -1,12 +1,14 @@
 # BoatTracking
 
-Name your Valheim ships with hold E and see them on the world map from anywhere. Works on dedicated servers (mod on **server + clients**).
+Name your Valheim ships with hold E and see them on the world map from anywhere.
+
+**Server + clients:** for multiplayer, install BoatTracking on the dedicated server and on every player. Client-only will not sync pins.
 
 ## Install
 
 1. Open [r2modman](https://r2modman.com/) (or Thunderstore Mod Manager) → Valheim → your profile.
 2. Online → search `DevDonkey-BoatTracking`, or install from the package page once published.
-3. For multiplayer: install the same mod on the dedicated server.
+3. For multiplayer: install the **same** mod on the dedicated server, then restart the server.
 4. Launch through the mod manager.
 
 Manual install: put `BoatTracking.dll` in `BepInEx/plugins/` (requires [BepInExPack_Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/)).
@@ -20,6 +22,7 @@ Manual install: put `BoatTracking.dll` in `BepInEx/plugins/` (requires [BepInExP
 ## Notes
 
 - Server syncs ship positions so pins work even when the boat is unloaded.
+- Mismatched client/server builds show an in-game update warning.
 - Does not track carts (yet).
 - Other mods: [DevDonkey on Thunderstore](https://thunderstore.io/c/valheim/p/DevDonkey/)
 

@@ -12,6 +12,9 @@ public class BoatTrackingPlugin : BaseUnityPlugin
   public const string NAME = "BoatTracking";
   public const string VERSION = "1.0.0";
 
+  // Wire-format version for sync packages (independent of Thunderstore VERSION).
+  public const int ProtocolVersion = 1;
+
   public const string ZdoNameKey = "BoatTracking.Name";
   public const string RpcSync = "BoatTracking.Sync";
   public const string RpcRename = "BoatTracking.Rename";

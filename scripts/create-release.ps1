@@ -51,7 +51,7 @@ $manifest = @{
   name            = "BoatTracking"
   version_number  = $Version
   website_url     = "https://github.com/MattHB1/valheim-boat-tracking"
-  description     = "Name your ships with hold E and see them on the map anywhere - works on dedicated servers."
+  description     = "Hold E to name boats and track them on the map. Required on dedicated server AND all clients."
   dependencies    = @("denikson-BepInExPack_Valheim-5.4.2350")
 } | ConvertTo-Json -Depth 5
 [IO.File]::WriteAllText((Join-Path $Ts "manifest.json"), $manifest + "`n")
@@ -66,11 +66,18 @@ Write-Host ""
 Write-Host "Release artifacts in $ReleaseDir"
 Get-ChildItem $ReleaseDir | Format-Table Name, Length
 Write-Host "Upload Thunderstore.zip at https://thunderstore.io/c/valheim/create/package/"
+Write-Host "(or drag the zip into the Thunderstore / r2modman upload UI)"
 
 if ($GitHubRelease) {
   $tag = "v$Version"
   $dllAsset = Join-Path $ReleaseDir "BoatTracking.dll"
-  $notes = "Name your ships with hold E and see them on the map anywhere - works on dedicated servers. Install on server and clients."
+  $notes = @"
+Hold E to name boats and track them on the map from anywhere.
+
+**Install on the dedicated server AND every client** (same version). Client-only will not sync pins.
+
+See the Thunderstore package README for full instructions.
+"@
   gh release view $tag -R MattHB1/valheim-boat-tracking 2>$null
   if ($LASTEXITCODE -eq 0) {
     Write-Host "GitHub release $tag already exists; uploading assets..."
