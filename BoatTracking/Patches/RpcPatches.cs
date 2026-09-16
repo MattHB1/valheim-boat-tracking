@@ -1,5 +1,6 @@
 using System;
 using HarmonyLib;
+using UnityEngine;
 
 namespace BoatTracking.Patches;
 
@@ -30,4 +31,27 @@ internal static class MinimapDestroyPatch
 internal static class MinimapAwakePatch
 {
   private static void Postfix() => ShipSync.RequestFromServer();
+}
+
+// Draw custom ship markers each pin-update frame (does not rely on AddPin).
+[HarmonyPatch(typeof(Minimap), "UpdatePins")]
+internal static class MinimapUpdatePinsPatch
+{
+  private static void Postfix() => ShipPins.UpdateDrawnMarkers();
+}
+
+// Keep snapshot applied if something else wiped state.
+[HarmonyPatch(typeof(Minimap), "UpdateMap")]
+internal static class MinimapUpdateRefreshPatch
+{
+  private static float _next;
+  private static void Postfix()
+  {
+    if (Time.time < _next)
+      return;
+    _next = Time.time + 5f;
+    var latest = ShipSync.GetLatest();
+    if (latest.Count > 0)
+      ShipPins.Apply(latest);
+  }
 }

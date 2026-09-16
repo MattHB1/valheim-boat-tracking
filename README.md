@@ -15,7 +15,7 @@ Manual install: put `BoatTracking.dll` in `BepInEx/plugins/` (requires [BepInExP
 
 - **Hold E** while looking at a ship → rename it.
 - Tap E still boards / steers.
-- Ships show on the minimap and full map (custom name, or Raft / Karve / Longship if unnamed).
+- Ships show on the minimap and full map (custom name, or Raft / Karve / Longship / Drakkar if unnamed).
 
 ## Notes
 

@@ -19,12 +19,13 @@ internal static class ShipCatalog
     }
   }
 
-  // Vanilla ship prefabs. VikingShip is the Longship.
+  // Vanilla ship prefabs. VikingShip = Longship; VikingShip_Ashlands = Drakkar.
   internal static readonly PrefabInfo[] Prefabs =
   {
     new("Raft", "Raft"),
     new("Karve", "Karve"),
     new("VikingShip", "Longship"),
+    new("VikingShip_Ashlands", "Drakkar"),
   };
 
   private static readonly Dictionary<int, PrefabInfo> ByHash = BuildLookup();

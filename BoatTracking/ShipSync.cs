@@ -18,6 +18,7 @@ internal static class ShipSync
   private static float _timer;
   private static readonly List<ShipSnapshot> Latest = new();
   private static readonly object Gate = new();
+  private static int _lastLoggedCount = -1;
 
   internal static IReadOnlyList<ShipSnapshot> GetLatest()
   {
@@ -38,7 +39,14 @@ internal static class ShipSync
       return;
     _timer = 0f;
 
-    BroadcastNow();
+    try
+    {
+      BroadcastNow();
+    }
+    catch (System.Exception ex)
+    {
+      BoatTrackingPlugin.Log.LogError($"Ship sync failed: {ex}");
+    }
   }
 
   internal static void BroadcastNow()
@@ -53,6 +61,12 @@ internal static class ShipSync
     {
       Latest.Clear();
       Latest.AddRange(ships);
+    }
+
+    if (ships.Count != _lastLoggedCount)
+    {
+      _lastLoggedCount = ships.Count;
+      BoatTrackingPlugin.Log.LogInfo($"Broadcasting {ships.Count} ship pin(s) to clients.");
     }
 
     // Listen-server / singleplayer host draws pins locally.
@@ -72,8 +86,7 @@ internal static class ShipSync
       BroadcastNow();
       return;
     }
-    // Minimap can awake before we are fully connected.
-    var serverId = ZRoutedRpc.instance.GetServerPeerID();
+    var serverId = GetServerPeerIdSafe();
     if (serverId == 0L)
       return;
     ZRoutedRpc.instance.InvokeRoutedRPC(serverId, BoatTrackingPlugin.RpcRequestSync);
@@ -98,14 +111,26 @@ internal static class ShipSync
     if (pkg == null || pkg.Size() == 0)
       return;
 
-    pkg.SetPos(0);
-    var ships = ReadPackage(pkg);
-    lock (Gate)
+    try
     {
-      Latest.Clear();
-      Latest.AddRange(ships);
+      pkg.SetPos(0);
+      var ships = ReadPackage(pkg);
+      lock (Gate)
+      {
+        Latest.Clear();
+        Latest.AddRange(ships);
+      }
+      if (ships.Count != _lastLoggedCount)
+      {
+        _lastLoggedCount = ships.Count;
+        BoatTrackingPlugin.Log.LogInfo($"Received {ships.Count} ship pin(s) from server.");
+      }
+      ShipPins.Apply(ships);
     }
-    ShipPins.Apply(ships);
+    catch (System.Exception ex)
+    {
+      BoatTrackingPlugin.Log.LogError($"Ship sync receive failed: {ex}");
+    }
   }
 
   internal static void HandleRename(long sender, ZPackage pkg)
@@ -134,7 +159,49 @@ internal static class ShipSync
     var pkg = new ZPackage();
     pkg.Write(id);
     pkg.Write(name);
-    ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.instance.GetServerPeerID(), BoatTrackingPlugin.RpcRename, pkg);
+    var serverId = GetServerPeerIdSafe();
+    if (serverId == 0L)
+    {
+      BoatTrackingPlugin.Log.LogWarning("Rename skipped - no server peer id yet.");
+      return;
+    }
+    ZRoutedRpc.instance.InvokeRoutedRPC(serverId, BoatTrackingPlugin.RpcRename, pkg);
+  }
+
+  // Live GetServerPeerID is non-public; publicized libs lie. Call via reflection.
+  private static long GetServerPeerIdSafe()
+  {
+    try
+    {
+      var method = AccessTools.Method(typeof(ZRoutedRpc), "GetServerPeerID");
+      if (method != null && ZRoutedRpc.instance != null)
+      {
+        var result = method.Invoke(ZRoutedRpc.instance, null);
+        if (result is long id)
+          return id;
+      }
+    }
+    catch (System.Exception ex)
+    {
+      BoatTrackingPlugin.Log.LogWarning($"GetServerPeerID reflection failed: {ex.Message}");
+    }
+
+    try
+    {
+      var peer = ZNet.instance != null ? ZNet.instance.GetServerPeer() : null;
+      if (peer != null)
+      {
+        var uidField = AccessTools.Field(peer.GetType(), "m_uid");
+        if (uidField != null && uidField.GetValue(peer) is long uid)
+          return uid;
+      }
+    }
+    catch (System.Exception ex)
+    {
+      BoatTrackingPlugin.Log.LogWarning($"GetServerPeer fallback failed: {ex.Message}");
+    }
+
+    return 0L;
   }
 
   private static void ApplyRename(ZDOID id, string name)
@@ -169,77 +236,95 @@ internal static class ShipSync
     if (zdoMan == null)
       return result;
 
+    var seen = new HashSet<ZDOID>();
+
     void Consider(ZDO? zdo)
     {
       if (zdo == null || !zdo.IsValid())
         return;
+      if (!seen.Add(zdo.m_uid))
+        return;
       if (!ShipCatalog.TryGet(zdo.GetPrefab(), out var info))
         return;
+
       var custom = zdo.GetString(BoatTrackingPlugin.ZdoNameKey, string.Empty);
       if (!BoatTrackingPlugin.ShowUnnamed.Value && string.IsNullOrWhiteSpace(custom))
         return;
 
+      var pos = zdo.GetPosition();
       result.Add(new ShipSnapshot
       {
         Id = zdo.m_uid,
-        Position = zdo.GetPosition(),
+        Position = pos,
         Name = custom?.Trim() ?? string.Empty,
         TypeLabel = info.Label,
         PrefabHash = info.Hash,
       });
     }
 
-    var bySector = zdoMan.m_objectsBySector;
-    if (bySector != null)
-    {
-      foreach (var list in bySector)
-      {
-        if (list == null)
-          continue;
-        foreach (var zdo in list)
-          Consider(zdo);
-      }
-    }
+    // Reflection: live m_objectsByID is private (publicized libs lie), but FieldInfo works.
+    CollectFromObjectsById(zdoMan, Consider);
 
-    // Newer Valheim builds also keep some ZDOs in chunk buckets.
-    CollectFromChunkField(zdoMan, Consider);
+    // Fallback if dictionary scan found nothing.
+    if (result.Count == 0)
+      CollectFromPrefabIterative(zdoMan, Consider);
 
     return result;
   }
 
-  private static void CollectFromChunkField(ZDOMan zdoMan, System.Action<ZDO?> consider)
+  private static void CollectFromObjectsById(ZDOMan zdoMan, System.Action<ZDO?> consider)
   {
-    var field = AccessTools.Field(typeof(ZDOMan), "m_objectsByChunk");
-    if (field == null)
-      return;
-    var value = field.GetValue(zdoMan);
-    if (value == null)
-      return;
-
-    // Expected shapes: Dictionary<*, List<ZDO>> or similar enumerable of lists.
-    if (value is System.Collections.IDictionary dict)
+    try
     {
-      foreach (var entry in dict.Values)
-        ConsiderZdoList(entry, consider);
-      return;
+      var field = AccessTools.Field(typeof(ZDOMan), "m_objectsByID");
+      var value = field?.GetValue(zdoMan);
+      if (value is System.Collections.IDictionary dict)
+      {
+        foreach (var entry in dict.Values)
+        {
+          if (entry is ZDO zdo)
+            consider(zdo);
+        }
+        return;
+      }
+
+      // Some builds use a custom map type that still enumerates values.
+      if (value is System.Collections.IEnumerable enumerable)
+      {
+        foreach (var entry in enumerable)
+        {
+          if (entry is ZDO zdo)
+            consider(zdo);
+          else if (entry is System.Collections.DictionaryEntry de && de.Value is ZDO zdo2)
+            consider(zdo2);
+        }
+      }
     }
-
-    if (value is System.Collections.IEnumerable enumerable)
+    catch (System.Exception ex)
     {
-      foreach (var entry in enumerable)
-        ConsiderZdoList(entry, consider);
+      BoatTrackingPlugin.Log.LogWarning($"ZDO id scan failed: {ex.Message}");
     }
   }
 
-  private static void ConsiderZdoList(object? entry, System.Action<ZDO?> consider)
+  private static void CollectFromPrefabIterative(ZDOMan zdoMan, System.Action<ZDO?> consider)
   {
-    if (entry is System.Collections.IEnumerable list)
+    var buffer = new List<ZDO>();
+    foreach (var info in ShipCatalog.Prefabs)
     {
-      foreach (var item in list)
+      buffer.Clear();
+      var index = 0;
+      var guard = 0;
+      while (!zdoMan.GetAllZDOsWithPrefabIterative(info.Prefab, buffer, ref index))
       {
-        if (item is ZDO zdo)
-          consider(zdo);
+        if (++guard > 100000)
+        {
+          BoatTrackingPlugin.Log.LogWarning($"Prefab scan aborted for {info.Prefab}");
+          break;
+        }
       }
+
+      foreach (var zdo in buffer)
+        consider(zdo);
     }
   }
 

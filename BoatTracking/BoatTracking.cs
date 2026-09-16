@@ -1,5 +1,6 @@
 using BepInEx;
 using BepInEx.Configuration;
+using BepInEx.Logging;
 using HarmonyLib;
 
 namespace BoatTracking;
@@ -22,9 +23,12 @@ public class BoatTrackingPlugin : BaseUnityPlugin
   internal static ConfigEntry<float> SyncInterval = null!;
   internal static ConfigEntry<int> MaxNameLength = null!;
 
+  internal static ManualLogSource Log = null!;
+
   private void Awake()
   {
     Instance = this;
+    Log = Logger;
     ShowPins = Config.Bind("General", "ShowPins", true, "Show ship pins on the minimap and world map.");
     ShowUnnamed = Config.Bind("General", "ShowUnnamed", true, "Show pins for ships that have not been renamed (label = ship type).");
     SyncInterval = Config.Bind("General", "SyncInterval", 3f, "Seconds between server ship-position syncs (1-30).");
