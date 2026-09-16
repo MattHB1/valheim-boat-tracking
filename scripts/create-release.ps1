@@ -78,7 +78,7 @@ Hold E to name boats and track them on the map from anywhere.
 
 See the Thunderstore package README for full instructions.
 "@
-  gh release view $tag -R MattHB1/valheim-boat-tracking 2>$null
+  gh release view $tag -R MattHB1/valheim-boat-tracking 2>&1 | Out-Null
   if ($LASTEXITCODE -eq 0) {
     Write-Host "GitHub release $tag already exists; uploading assets..."
     gh release upload $tag $dllAsset $TsZip -R MattHB1/valheim-boat-tracking --clobber
