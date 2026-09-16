@@ -1,0 +1,10 @@
+bin
+obj
+.vs
+.ionide/symbolCache.db
+*.user
+*.suo
+release/
+publish/*.dll
+*.zip
+.tmp-decompile/

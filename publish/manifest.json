@@ -1,0 +1,9 @@
+{
+  "name": "BoatTracking",
+  "version_number": "1.0.0",
+  "website_url": "https://github.com/MattHB1/valheim-boat-tracking",
+  "description": "Name your ships with hold E and see them on the map anywhere - works on dedicated servers.",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2350"
+  ]
+}
