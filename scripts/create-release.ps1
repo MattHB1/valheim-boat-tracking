@@ -78,8 +78,11 @@ Name your boats and see them on the map. For multiplayer, install on the dedicat
 
 See the Thunderstore package README for full instructions.
 "@
+  $ErrorActionPreference = "Continue"
   gh release view $tag -R MattHB1/valheim-boat-tracking 2>&1 | Out-Null
-  if ($LASTEXITCODE -eq 0) {
+  $exists = ($LASTEXITCODE -eq 0)
+  $ErrorActionPreference = "Stop"
+  if ($exists) {
     Write-Host "GitHub release $tag already exists; uploading assets..."
     gh release upload $tag $dllAsset $TsZip -R MattHB1/valheim-boat-tracking --clobber
   } else {
