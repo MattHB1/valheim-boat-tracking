@@ -51,7 +51,7 @@ $manifest = @{
   name            = "BoatTracking"
   version_number  = $Version
   website_url     = "https://github.com/MattHB1/valheim-boat-tracking"
-  description     = "Hold E to name boats and track them on the map. Required on dedicated server AND all clients."
+  description     = "Name your boats! See all boats positions on the map. Single player or multiplayer."
   dependencies    = @("denikson-BepInExPack_Valheim-5.4.2350")
 } | ConvertTo-Json -Depth 5
 [IO.File]::WriteAllText((Join-Path $Ts "manifest.json"), $manifest + "`n")
@@ -72,9 +72,9 @@ if ($GitHubRelease) {
   $tag = "v$Version"
   $dllAsset = Join-Path $ReleaseDir "BoatTracking.dll"
   $notes = @"
-Hold E to name boats and track them on the map from anywhere.
+BoatTracking $Version - package copy refresh.
 
-**Install on the dedicated server AND every client** (same version). Client-only will not sync pins.
+Name your boats and see them on the map. For multiplayer, install on the dedicated server AND every client (same version).
 
 See the Thunderstore package README for full instructions.
 "@

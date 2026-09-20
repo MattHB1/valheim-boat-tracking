@@ -1,8 +1,11 @@
 # BoatTracking
 
-Name your boats with hold **E**, then find them on the map from anywhere - even across the ocean, even when nobody is near them.
+Name your boats by holding **E**. 
 
-**This is a server + client mod.** The dedicated server and every player need the same BoatTracking install. Client-only will not sync map pins.
+All boats are visible on the map from anywhere - even across the ocean, even when nobody is near them. Unnamed boats will use their type name.
+
+Use in single player, or multiplayer. For dedicated servers see install instructions below.
+
 
 ## Install (multiplayer / dedicated)
 

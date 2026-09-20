@@ -1,8 +1,8 @@
 {
   "name": "BoatTracking",
-  "version_number": "1.0.0",
+  "version_number": "1.0.1",
   "website_url": "https://github.com/MattHB1/valheim-boat-tracking",
-  "description": "Hold E to name boats and track them on the map. Required on dedicated server AND all clients.",
+  "description": "Name your boats! See all boats positions on the map. Single player or multiplayer.",
   "dependencies": [
     "denikson-BepInExPack_Valheim-5.4.2350"
   ]

@@ -10,7 +10,7 @@ public class BoatTrackingPlugin : BaseUnityPlugin
 {
   public const string GUID = "matthb1.boattracking";
   public const string NAME = "BoatTracking";
-  public const string VERSION = "1.0.0";
+  public const string VERSION = "1.0.1";
 
   // Wire-format version for sync packages (independent of Thunderstore VERSION).
   public const int ProtocolVersion = 1;

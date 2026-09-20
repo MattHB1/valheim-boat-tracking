@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- Updated Thunderstore package description and README copy.
+
 ## 1.0.0
 
 - Hold E on a ship to rename it (tap E still boards / steers).
